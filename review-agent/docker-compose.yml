@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+  review-agent:
+    build: .
+    ports:
+      - "8010:8000"
+    env_file:
+      - .env
+    environment:
+      REVIEW_AGENT_DATA_DIR: /data
+    volumes:
+      - review_data:/data
+      # Needed so review-agent can build/run submitted seller images. This grants
+      # review-agent full host Docker access — in production this should run on an
+      # isolated build host, not share a daemon with production containers.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Identity bind mount (host path == container path) for dynamic-test output volumes.
+      # review-agent calls the *host* Docker daemon to launch sibling test containers, so
+      # any bind-mount source it hands the API must already be a valid host path — mounting
+      # the same absolute path on both sides means a tempdir review-agent creates for itself
+      # under DYNAMIC_TEST_OUTPUTS_DIR is also directly usable as that source, with no
+      # translation needed. See DYNAMIC_TEST_OUTPUTS_DIR in .env.
+      - ${DYNAMIC_TEST_OUTPUTS_DIR}:${DYNAMIC_TEST_OUTPUTS_DIR}
+
+volumes:
+  review_data:

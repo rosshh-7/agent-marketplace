@@ -1,0 +1,36 @@
+# Dev-mode override for the frontend service: runs webpack-dev-server (hot
+# reload) inside the container instead of the static nginx build. Not loaded
+# automatically — combine explicitly with the base file:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up frontend
+#
+# (backend/postgres/etc. still come from docker-compose.yml as usual; only
+# the frontend service is overridden here.)
+services:
+  frontend:
+    build:
+      target: dev
+    # `!override` (not merge/append, which is Compose's default for lists) —
+    # otherwise this would sit alongside the base file's 80->nginx mapping and
+    # both would try to publish the same host port.
+    ports: !override
+      # webpack-dev-server listens on 3000 itself (unlike production, which
+      # maps host 3000 -> container nginx port 80).
+      - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      # Bind-mount only source/config, not the whole project — this avoids
+      # shadowing the image's /app/node_modules (installed at build time)
+      # with whatever (or nothing) is on the host.
+      - ./marketplace-platform/frontend/src:/app/src
+      - ./marketplace-platform/frontend/public:/app/public
+      - ./marketplace-platform/frontend/webpack.config.js:/app/webpack.config.js
+      - ./marketplace-platform/frontend/tsconfig.json:/app/tsconfig.json
+    environment:
+      # Docker Desktop's bind-mount filesystem (osxfs/virtiofs on Mac, similar
+      # on Windows) often doesn't propagate native fs-change events reliably
+      # into the container — polling makes webpack's watcher (watchpack) check
+      # file mtimes instead of waiting on those events.
+      WATCHPACK_POLLING: "true"
+      # See webpack.config.js: "backend" is this service's name on
+      # agentmarket-net, resolvable via Docker's internal DNS.
+      BACKEND_PROXY_URL: http://backend:8000

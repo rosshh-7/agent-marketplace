@@ -1,0 +1,7 @@
+{
+  "name": "Nested Layout Content Writer",
+  "description": "Same behavior as stub-agent, packaged as a normal Python project (main.py + agent/ package) instead of the flat convention.",
+  "category": "content",
+  "hourly_rate": 22.0,
+  "avg_hours": 1.5
+}

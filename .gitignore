@@ -1,0 +1,31 @@
+# Secrets — never commit real env files (keep .env.example tracked)
+.env
+*/.env
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Node / frontend build
+node_modules/
+marketplace-platform/frontend/dist/
+
+# Runtime data & job outputs (recreated by the running stack)
+.docker-data/
+outputs/
+req-agent/data/
+req-agent/output/
+review-agent/data/
+review-agent/.dynamic-test-outputs/
+
+# Local tooling
+.claude/
+
+# Superseded builds & archives kept for reference, not for the repo
+extra/

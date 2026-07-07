@@ -1,0 +1,2 @@
+langgraph==0.2.34
+requests==2.32.3

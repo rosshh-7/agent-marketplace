@@ -1,0 +1,201 @@
+# Agent Marketplace — top-level orchestration.
+#
+# Brings up everything EXCEPT the worker agent (listing-agent/html-ui-builder), which is
+# not a long-running service — the backend launches one container per hired job on demand
+# via the Python `docker` SDK (see marketplace-platform/backend/app/services/docker_launcher.py).
+# Build + tag that image once, separately, before jobs can complete:
+#   ./scripts/build-agents.sh      (or: make build-agents)
+#
+# See README.md for the full bring-up sequence and PLATFORM_CONTRACT.md §6/§10 for the
+# contract this file implements (Docker networking + identity bind-mount trick).
+
+services:
+  # --------------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-agentmarket}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdev}
+      POSTGRES_DB: ${POSTGRES_DB:-agentmarket}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      # Published for local psql/GUI access only — no other container needs this
+      # published; they reach postgres:5432 directly over agentmarket-net regardless
+      # of this host-side mapping. Override POSTGRES_PORT in .env if 5432 is already
+      # taken by another Postgres on the host (common on dev machines).
+      - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - agentmarket-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agentmarket} -d ${POSTGRES_DB:-agentmarket}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # --------------------------------------------------------------------------------
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "${MAILHOG_SMTP_PORT:-1025}:1025"   # SMTP — backend's SMTP_HOST/SMTP_PORT point here
+      - "${MAILHOG_UI_PORT:-8025}:8025"     # Web UI — inspect completion emails
+    networks:
+      - agentmarket-net
+
+  # --------------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./marketplace-platform/backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+    ports:
+      # Override BACKEND_PORT in .env if 8000 is already taken on the host — this
+      # only changes the host-side mapping; other containers still reach the backend
+      # at http://backend:8000 over agentmarket-net regardless.
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://agentmarket:localdev@postgres:5432/agentmarket}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      REQ_AGENT_URL: http://req-agent:8002
+      REVIEW_AGENT_URL: http://review-agent:8000
+      AGENT_DOCKER_NETWORK: ${AGENT_DOCKER_NETWORK:-agentmarket-net}
+      BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://backend:8000}
+      # Identity bind-mount path — see the long comment on the `volumes:` entry below
+      # and .env.example::OUTPUTS_DIR. This value is handed to docker_launcher.py,
+      # which passes it verbatim as the bind-mount SOURCE (a real host path) for every
+      # worker container it launches via the host Docker daemon.
+      OUTPUTS_DIR: ${OUTPUTS_DIR}
+      SUBMISSIONS_DIR: /submissions
+      PREVIEWS_DIR: /previews
+      LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      XAI_API_KEY: ${XAI_API_KEY:-}
+      XAI_MODEL: ${XAI_MODEL:-grok-4}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      SMTP_HOST: ${SMTP_HOST:-mailhog}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@agentmarket.local}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      # Lets the backend launch worker containers via the Python `docker` SDK against
+      # the *host* daemon (docker.from_env() picks this up automatically) — same
+      # pattern review-agent already uses for its own sandboxed test runs.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # IDENTITY BIND MOUNT (worker output visibility, contract §6): mounts the real
+      # host directory named by OUTPUTS_DIR into the backend container at the fixed
+      # path `/outputs` — the same literal path agentmarket_sdk/sdk.py hardcodes
+      # inside every worker container (see docker_launcher.py, which mounts this same
+      # OUTPUTS_DIR host path into each worker at that same `/outputs` target). Both
+      # containers therefore see the identical files at the identical container path,
+      # even though the *host* path itself can live anywhere (see .env.example).
+      - ${OUTPUTS_DIR}:/outputs
+      # Internal-only storage — no sibling container ever reads these, so plain named
+      # volumes are sufficient (no identity-bind-mount trick needed here).
+      - submissions_data:/submissions
+      - previews_data:/previews
+    networks:
+      - agentmarket-net
+
+  # --------------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./marketplace-platform/frontend
+      args:
+        # Build-time only (webpack DefinePlugin) — see .env.example::API_BASE_URL for
+        # why this must be a browser-reachable absolute URL, not a Docker service name.
+        API_BASE_URL: ${API_BASE_URL:-http://localhost:8000}
+    depends_on:
+      - backend
+    ports:
+      # Override FRONTEND_PORT in .env if 3000 is already taken on the host. Note:
+      # if you do, also update API_BASE_URL's port to match wherever BACKEND_PORT
+      # ends up — the browser needs both, independent of this remap.
+      - "${FRONTEND_PORT:-3000}:80"
+    networks:
+      - agentmarket-net
+
+  # --------------------------------------------------------------------------------
+  # req-agent — already a standalone service (frozen input, not rebuilt by this repo's
+  # backend/frontend tracks). Config mirrors req-agent/docker-compose.yml; reusing its
+  # own Dockerfile/build context here so it joins the shared network the rest of the
+  # stack uses, instead of running as a fully separate compose project.
+  req-agent:
+    build:
+      context: ./req-agent
+    ports:
+      - "${REQ_AGENT_PORT:-8002}:8002"
+    volumes:
+      - ./req-agent/data:/app/data
+      - ./req-agent/output:/app/output
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      XAI_API_KEY: ${XAI_API_KEY:-}
+      XAI_MODEL: ${XAI_MODEL:-grok-4}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+    networks:
+      - agentmarket-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --------------------------------------------------------------------------------
+  # review-agent — already a standalone service (frozen input). Config mirrors
+  # review-agent/docker-compose.yml, including its own identity bind-mount for
+  # DYNAMIC_TEST_OUTPUTS_DIR and its /var/run/docker.sock mount (it builds/runs
+  # sandboxed containers on the host daemon to test seller submissions).
+  review-agent:
+    build:
+      context: ./review-agent
+    ports:
+      - "${REVIEW_AGENT_PORT:-8010}:8000"
+    environment:
+      REVIEW_AGENT_DATA_DIR: /data
+      LLM_PROVIDER: ${REVIEW_AGENT_LLM_PROVIDER:-groq}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      XAI_API_KEY: ${XAI_API_KEY:-}
+      XAI_MODEL: ${XAI_MODEL:-grok-4}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      DYNAMIC_TEST_OUTPUTS_DIR: ${DYNAMIC_TEST_OUTPUTS_DIR}
+    volumes:
+      - review_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      # IDENTITY BIND MOUNT (dynamic-test sibling container output visibility) — see
+      # .env.example::DYNAMIC_TEST_OUTPUTS_DIR and review-agent/app/config.py. Unlike
+      # OUTPUTS_DIR above, review-agent's own code reads files via this exact env var
+      # (not a separate hardcoded path), so source and target must be textually
+      # identical here.
+      - ${DYNAMIC_TEST_OUTPUTS_DIR}:${DYNAMIC_TEST_OUTPUTS_DIR}
+    networks:
+      - agentmarket-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  # Fixed literal name (not Compose's default project-prefixed name) — this must match
+  # AGENT_DOCKER_NETWORK exactly, since the backend passes that value as `--network`
+  # when it launches worker containers directly against the host Docker daemon, outside
+  # of Compose's own service graph (contract §6).
+  agentmarket-net:
+    name: agentmarket-net
+    driver: bridge
+
+volumes:
+  postgres_data:
+  review_data:
+  submissions_data:
+  previews_data:

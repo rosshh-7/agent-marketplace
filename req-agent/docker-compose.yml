@@ -1,0 +1,29 @@
+services:
+  api:
+    build: .
+    container_name: req_agent_api
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./data:/app/data      # persists SQLite sessions
+      - ./output:/app/output  # persists generated documents
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  cli:
+    build: .
+    container_name: req_agent_cli
+    command: python -m cli.client --api-url http://api:8002
+    stdin_open: true
+    tty: true
+    depends_on:
+      api:
+        condition: service_healthy
+    env_file:
+      - .env
