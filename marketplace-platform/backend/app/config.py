@@ -72,7 +72,7 @@ class Settings:
     SMTP_FROM: str = os.getenv("SMTP_FROM", "noreply@agentmarket.local")
     SMTP_USE_TLS: bool = _bool("SMTP_USE_TLS", "false")
 
-    FRONTEND_BASE_URL: str = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
+    FRONTEND_BASE_URL: str = os.getenv("FRONTEND_BASE_URL", "http://localhost:3001")
 
     # --- Misc ---
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")

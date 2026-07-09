@@ -67,15 +67,15 @@ request that launched it.
    OUTPUTS_DIR=/tmp/agentmarket-outputs
    SUBMISSIONS_DIR=/tmp/agentmarket-submissions
    PREVIEWS_DIR=/tmp/agentmarket-previews
-   BACKEND_INTERNAL_URL=http://host.docker.internal:8000
+   BACKEND_INTERNAL_URL=http://host.docker.internal:8001
    LLM_PROVIDER=xai
    XAI_API_KEY=...
    XAI_MODEL=grok-4
    SMTP_HOST=localhost
    SMTP_PORT=1025
    SMTP_FROM=noreply@agentmarket.local
-   FRONTEND_BASE_URL=http://localhost:3000
-   CORS_ORIGINS=http://localhost:3000
+   FRONTEND_BASE_URL=http://localhost:3001
+   CORS_ORIGINS=http://localhost:3001
    ```
    Create the three local directories referenced above (`mkdir -p /tmp/agentmarket-{outputs,submissions,previews}`)
    before starting the app.
@@ -88,11 +88,11 @@ request that launched it.
 
 5. **Run it:**
    ```bash
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
    ```
-   Visit `http://localhost:8000/health` — should return `{"status": "ok"}`. The startup seed
+   Visit `http://localhost:8001/health` — should return `{"status": "ok"}`. The startup seed
    creates the "HTML UI Builder" agent listing automatically; confirm with
-   `curl http://localhost:8000/api/agents`.
+   `curl http://localhost:8001/api/agents`.
 
 6. **Upstream agents**, if you want the hire/upload flows to actually work end to end, need
    to be running separately per their own READMEs:
@@ -123,7 +123,7 @@ request that launched it.
 `Dockerfile` builds the backend service alone:
 ```bash
 docker build -t agentmarket-backend .
-docker run -p 8000:8000 --env-file .env \
+docker run -p 8001:8000 --env-file .env \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v /tmp/agentmarket-outputs:/tmp/agentmarket-outputs \
   --network agentmarket-net \

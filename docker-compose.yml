@@ -52,10 +52,10 @@ services:
       mailhog:
         condition: service_started
     ports:
-      # Override BACKEND_PORT in .env if 8000 is already taken on the host — this
+      # Override BACKEND_PORT in .env if 8001 is already taken on the host — this
       # only changes the host-side mapping; other containers still reach the backend
       # at http://backend:8000 over agentmarket-net regardless.
-      - "${BACKEND_PORT:-8000}:8000"
+      - "${BACKEND_PORT:-8001}:8000"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://agentmarket:localdev@postgres:5432/agentmarket}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
@@ -81,8 +81,8 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-noreply@agentmarket.local}
-      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:3000}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:3001}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3001}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
       # Lets the backend launch worker containers via the Python `docker` SDK against
@@ -111,14 +111,14 @@ services:
       args:
         # Build-time only (webpack DefinePlugin) — see .env.example::API_BASE_URL for
         # why this must be a browser-reachable absolute URL, not a Docker service name.
-        API_BASE_URL: ${API_BASE_URL:-http://localhost:8000}
+        API_BASE_URL: ${API_BASE_URL:-http://localhost:8001}
     depends_on:
       - backend
     ports:
-      # Override FRONTEND_PORT in .env if 3000 is already taken on the host. Note:
+      # Override FRONTEND_PORT in .env if 3001 is already taken on the host. Note:
       # if you do, also update API_BASE_URL's port to match wherever BACKEND_PORT
       # ends up — the browser needs both, independent of this remap.
-      - "${FRONTEND_PORT:-3000}:80"
+      - "${FRONTEND_PORT:-3001}:80"
     networks:
       - agentmarket-net
 

@@ -18,7 +18,7 @@ export default function Footer() {
         </span>
         <div className="landing-footer-links">
           <Link to="/agents">Browse</Link>
-          <Link to="/seller/dashboard">Sell an agent</Link>
+          <Link to="/seller/dashboard">List your agent</Link>
           <Link to="/login">Log in</Link>
         </div>
       </div>

@@ -13,8 +13,8 @@ npm install
 npm start
 ```
 
-This starts `webpack serve` on **http://localhost:3000**. The dev server proxies any
-request to `/api/*` to the backend at **http://localhost:8000** (see `webpack.config.js`),
+This starts `webpack serve` on **http://localhost:3001**. The dev server proxies any
+request to `/api/*` to the backend at **http://localhost:8001** (see `webpack.config.js`),
 so the backend must be running there for anything beyond the static "browse agents" page
 to work end-to-end. Until the backend is up, the app itself still compiles and renders
 (you'll just see fetch errors surfaced as inline error banners instead of data).
@@ -44,7 +44,7 @@ npm run typecheck
 Example: `API_BASE_URL=https://api.example.com npm run build`
 
 The backend URL used by the **dev-server proxy** (not the same thing as `API_BASE_URL`,
-which affects the built bundle) is hardcoded to `http://localhost:8000` in
+which affects the built bundle) is hardcoded to `http://localhost:8001` in
 `webpack.config.js`, matching `PLATFORM_CONTRACT.md`'s default. Edit the `devServer.proxy`
 target there if your local backend runs elsewhere.
 

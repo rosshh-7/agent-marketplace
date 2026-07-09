@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { AgentSummary } from '../types';
+import { ArrowUpRightIcon } from './icons';
 
 function initials(name: string): string {
   const words = name.split(/\s+/).filter(Boolean);
@@ -15,10 +16,23 @@ export function formatCategory(category: string): string {
 }
 
 export default function AgentCard({ agent, index = 0 }: { agent: AgentSummary; index?: number }) {
+  const ref = useRef<HTMLAnchorElement>(null);
+
+  // Spotlight hover: track the cursor so the card's radial glow follows it.
+  const onMouseMove = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    el.style.setProperty('--mx', `${e.clientX - rect.left}px`);
+    el.style.setProperty('--my', `${e.clientY - rect.top}px`);
+  };
+
   return (
     <Link
+      ref={ref}
       to={`/agents/${agent.id}`}
       className="agent-card"
+      onMouseMove={onMouseMove}
       // Stagger the entrance animation; capped so long grids don't feel slow.
       style={{ '--i': Math.min(index, 8) } as React.CSSProperties}
     >
@@ -28,6 +42,7 @@ export default function AgentCard({ agent, index = 0 }: { agent: AgentSummary; i
           <h3>{agent.name}</h3>
           <span className="agent-card-category">{formatCategory(agent.category)}</span>
         </div>
+        <ArrowUpRightIcon size={16} className="agent-card-arrow" />
       </div>
       <p className="agent-card-summary">{agent.card_copy || agent.description}</p>
       <div className="agent-card-footer">

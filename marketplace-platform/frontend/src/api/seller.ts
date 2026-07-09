@@ -2,7 +2,12 @@
 // (PLATFORM_CONTRACT.md §4).
 
 import { apiFetch } from './client';
-import { SellerSubmissionDetail, SellerSubmissionSummary, SellerUploadResponse } from '../types';
+import {
+  SellerDashboard,
+  SellerSubmissionDetail,
+  SellerSubmissionSummary,
+  SellerUploadResponse,
+} from '../types';
 
 export interface UploadAgentParams {
   name: string;
@@ -35,4 +40,8 @@ export function listSubmissions(token: string): Promise<SellerSubmissionSummary[
 
 export function getSubmission(token: string, submissionId: string): Promise<SellerSubmissionDetail> {
   return apiFetch<SellerSubmissionDetail>(`/api/seller/agents/${submissionId}`, { token });
+}
+
+export function getDashboard(token: string): Promise<SellerDashboard> {
+  return apiFetch<SellerDashboard>('/api/seller/dashboard', { token });
 }

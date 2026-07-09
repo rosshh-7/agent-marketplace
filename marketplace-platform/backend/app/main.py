@@ -9,7 +9,7 @@ FastAPI app entrypoint. Route registration map (for tracing a request end-to-end
   /jobs/{id}/progress          -> routers/callbacks.py       (SDK callback, UNPREFIXED, no auth)
   /jobs/{id}/complete          -> routers/callbacks.py       (SDK callback, UNPREFIXED, no auth)
 
-Run with: uvicorn app.main:app --host 0.0.0.0 --port 8000
+Run with: uvicorn app.main:app --host 0.0.0.0 --port 8001
 """
 import logging
 import time
@@ -68,6 +68,7 @@ app.include_router(seller_auth.router, prefix="/api")
 app.include_router(agents.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")
 app.include_router(seller_agents.router, prefix="/api")
+app.include_router(seller_agents.dashboard_router, prefix="/api")
 
 # --- Unprefixed SDK callback routes (hard constraint, contract §6) ---
 app.include_router(callbacks.router)

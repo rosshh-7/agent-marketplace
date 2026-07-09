@@ -26,11 +26,19 @@ import NotFoundPage from './pages/NotFoundPage';
 
 /* The landing page manages its own section widths and needs to span the
    full viewport (hero glow, CTA band); every other page uses the standard
-   centered column. */
+   centered column. Keying by pathname replays the enter animation on every
+   route change. */
 function AppMain({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const isLanding = location.pathname === '/';
-  return <main className={isLanding ? 'app-main full-bleed' : 'app-main'}>{children}</main>;
+  return (
+    <main
+      key={location.pathname}
+      className={`${isLanding ? 'app-main full-bleed' : 'app-main'} route-fade`}
+    >
+      {children}
+    </main>
+  );
 }
 
 export default function App() {

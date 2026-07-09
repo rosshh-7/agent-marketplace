@@ -68,8 +68,8 @@ submissions/previews named volumes for a fully clean slate).
 
 | Service | Container port | Host port (default) | What it is |
 |---|---|---|---|
-| frontend | 80 (nginx) | **3000** | React SPA — start here: http://localhost:3000 |
-| backend | 8000 | **8000** | FastAPI — REST API + SDK callback routes. `/health`, `/api/...` |
+| frontend | 80 (nginx) | **3001** | React SPA — start here: http://localhost:3001 |
+| backend | 8000 | **8001** | FastAPI — REST API + SDK callback routes. `/health`, `/api/...` |
 | req-agent | 8002 | **8002** | Requirement-gathering chat service (standalone, frozen input) |
 | review-agent | 8000 | **8010** | Seller-submission review service (standalone, frozen input) |
 | mailhog | 8025 (UI) / 1025 (SMTP) | **8025** / **1025** | Inspect completion emails at http://localhost:8025 |
@@ -118,18 +118,18 @@ browser, not by other containers.
   `previews_data`) — no identity-mount trick needed.
 - The frontend is a static SPA served by nginx with **no runtime `/api` proxy** (see
   `marketplace-platform/frontend/nginx.conf`) — `API_BASE_URL` is baked into the JS bundle
-  at *build* time as an absolute, browser-reachable URL (`http://localhost:8000` by
+  at *build* time as an absolute, browser-reachable URL (`http://localhost:8001` by
   default), not the Docker-network service name `http://backend:8000` (which only resolves
   for other containers, not code running in the user's browser).
 
 ## Verifying it's up
 
 ```bash
-curl http://localhost:8000/health              # {"status":"ok"}
-curl http://localhost:8000/api/agents          # [{"name":"HTML UI Builder", ...}] — seeded on backend startup
+curl http://localhost:8001/health              # {"status":"ok"}
+curl http://localhost:8001/api/agents          # [{"name":"HTML UI Builder", ...}] — seeded on backend startup
 curl http://localhost:8002/health              # {"status":"ok"}  (req-agent)
 curl -o /dev/null -w '%{http_code}\n' http://localhost:8010/docs   # 200 (review-agent, no dedicated /health route)
-curl -o /dev/null -w '%{http_code}\n' http://localhost:3000/       # 200 (frontend index.html)
+curl -o /dev/null -w '%{http_code}\n' http://localhost:3001/       # 200 (frontend index.html)
 open http://localhost:8025                      # Mailhog UI — completion emails land here
 ```
 
@@ -163,7 +163,7 @@ open http://localhost:8025                      # Mailhog UI — completion emai
   in a real multi-tenant production deployment (a compromised worker submission could in
   principle interact with the same daemon everything else runs on).
 - **Ports assume a clean host.** Defaults match `PLATFORM_CONTRACT.md` exactly (backend
-  8000, frontend 3000, req-agent 8002, review-agent 8010, Postgres 5432, Mailhog 1025/8025).
+  8001, frontend 3001, req-agent 8002, review-agent 8010, Postgres 5432, Mailhog 1025/8025).
   If something else on your machine already holds one of these, override the corresponding
   `*_PORT` variable in `.env` rather than editing `docker-compose.yml` (see **Ports** above).
 - **No Alembic / migrations** — the backend uses a startup `create_all()` (documented, and

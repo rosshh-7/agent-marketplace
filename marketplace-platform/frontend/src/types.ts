@@ -183,6 +183,51 @@ export interface SellerUploadResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Seller dashboard (GET /api/seller/dashboard)
+// ---------------------------------------------------------------------------
+
+export interface SellerAgentStats {
+  agent_id: string;
+  name: string;
+  category: string | null;
+  status: string;
+  hourly_rate: number | null;
+  avg_hours: number | null;
+  jobs_total: number;
+  jobs_active: number;
+  jobs_awaiting_review: number;
+  jobs_accepted: number;
+  jobs_rejected: number;
+  earnings: number;
+  last_job_at: string | null;
+}
+
+export type SellerNotificationKind =
+  | 'submission_approved'
+  | 'submission_flagged'
+  | 'submission_rejected'
+  | 'job_hired'
+  | 'job_accepted'
+  | 'job_rejected';
+
+export interface SellerNotification {
+  id: string;
+  kind: SellerNotificationKind;
+  title: string;
+  body: string | null;
+  at: string;
+}
+
+export interface SellerDashboard {
+  total_earnings: number;
+  pending_earnings: number;
+  total_jobs: number;
+  active_agents: number;
+  agents: SellerAgentStats[];
+  notifications: SellerNotification[];
+}
+
+// ---------------------------------------------------------------------------
 // Generic error shape (FastAPI's default HTTPException body)
 // ---------------------------------------------------------------------------
 

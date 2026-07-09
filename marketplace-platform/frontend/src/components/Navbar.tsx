@@ -109,7 +109,7 @@ export default function Navbar() {
               My jobs
             </NavLink>
             <Link to="/seller/dashboard" className="navbar-seller-link nav-hide-mobile">
-              Sell an agent
+              List your agent
             </Link>
             <UserMenu
               email={customerAuth.user?.email ?? ''}
@@ -131,7 +131,7 @@ export default function Navbar() {
               Log in
             </NavLink>
             <Link to="/seller/dashboard" className="navbar-seller-link nav-hide-mobile">
-              Sell an agent
+              List your agent
             </Link>
             <Link to="/signup" className="btn-primary nav-cta">
               Get started

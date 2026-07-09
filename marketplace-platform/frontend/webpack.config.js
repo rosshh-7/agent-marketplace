@@ -51,7 +51,9 @@ module.exports = (env, argv) => {
       }),
     ],
     devServer: {
-      port: 3000,
+      // 3001 rather than the classic 3000: every second dev tool defaults to
+      // 3000, so this avoids silent port collisions with other local apps.
+      port: 3001,
       // 0.0.0.0 so the dev server is reachable from outside its container
       // (docker-compose.dev.yml) as well as on the host (`npm start`).
       host: '0.0.0.0',
@@ -65,7 +67,7 @@ module.exports = (env, argv) => {
           // agentmarket-net), since "localhost" inside the frontend dev
           // container would otherwise mean the container itself.
           context: ['/api'],
-          target: process.env.BACKEND_PROXY_URL || 'http://localhost:8000',
+          target: process.env.BACKEND_PROXY_URL || 'http://localhost:8001',
           changeOrigin: true,
         },
       ],

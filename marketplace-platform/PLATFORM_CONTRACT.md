@@ -353,11 +353,11 @@ XAI_MODEL=grok-4
 SMTP_HOST=mailhog
 SMTP_PORT=1025
 SMTP_FROM=noreply@agentmarket.local
-FRONTEND_BASE_URL=http://localhost:3000
+FRONTEND_BASE_URL=http://localhost:3001
 ```
 
 Frontend build-time env: `API_BASE_URL` (webpack `DefinePlugin`/`.env`), default
-`http://localhost:8000`.
+`http://localhost:8001`.
 
 ---
 

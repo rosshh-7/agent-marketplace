@@ -1,6 +1,6 @@
 import os, json, requests
 
-API_BASE = os.getenv("AGENTMARKET_API", "http://localhost:8000")
+API_BASE = os.getenv("AGENTMARKET_API", "http://localhost:8001")
 JOB_ID   = os.getenv("JOB_ID")
 
 def task_input() -> dict:

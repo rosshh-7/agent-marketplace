@@ -192,3 +192,45 @@ class SubmissionSummary(BaseModel):
 class SubmissionDetail(SubmissionSummary):
     description: str | None
     review_result: dict[str, Any] | None
+
+
+# ---------- Seller dashboard ----------
+
+
+class SellerAgentStats(BaseModel):
+    """Per-listed-agent usage + earnings rollup for the seller dashboard."""
+
+    agent_id: uuid.UUID
+    name: str
+    category: str | None
+    status: str
+    hourly_rate: float | None
+    avg_hours: float | None
+    jobs_total: int
+    jobs_active: int
+    jobs_awaiting_review: int
+    jobs_accepted: int
+    jobs_rejected: int
+    earnings: float
+    last_job_at: datetime | None
+
+
+class SellerNotification(BaseModel):
+    """Derived from submission/job events at read time — there is no
+    notifications table; see routers/seller_agents.py::seller_dashboard."""
+
+    id: str
+    kind: str  # submission_approved | submission_flagged | submission_rejected
+    #          | job_hired | job_accepted | job_rejected
+    title: str
+    body: str | None
+    at: datetime
+
+
+class SellerDashboard(BaseModel):
+    total_earnings: float
+    pending_earnings: float
+    total_jobs: int
+    active_agents: int
+    agents: list[SellerAgentStats]
+    notifications: list[SellerNotification]

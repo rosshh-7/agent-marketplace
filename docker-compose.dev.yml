@@ -14,9 +14,9 @@ services:
     # otherwise this would sit alongside the base file's 80->nginx mapping and
     # both would try to publish the same host port.
     ports: !override
-      # webpack-dev-server listens on 3000 itself (unlike production, which
-      # maps host 3000 -> container nginx port 80).
-      - "${FRONTEND_PORT:-3000}:3000"
+      # webpack-dev-server listens on 3001 itself (unlike production, which
+      # maps host 3001 -> container nginx port 80).
+      - "${FRONTEND_PORT:-3001}:3001"
     volumes:
       # Bind-mount only source/config, not the whole project — this avoids
       # shadowing the image's /app/node_modules (installed at build time)
