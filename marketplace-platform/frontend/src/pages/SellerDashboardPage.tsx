@@ -136,9 +136,14 @@ export default function SellerDashboardPage() {
               {dashboard.agents.length === 0 ? (
                 <div className="empty-state">
                   <p>No listed agents yet — upload one and it will appear here once approved.</p>
-                  <Link to="/seller/agents/new" className="btn-secondary">
-                    Upload an agent
-                  </Link>
+                  <div className="job-actions" style={{ justifyContent: 'center' }}>
+                    <Link to="/seller/agents/new" className="btn-secondary">
+                      Upload an agent
+                    </Link>
+                    <Link to="/docs/build-agents" className="btn-secondary">
+                      Read the build guide
+                    </Link>
+                  </div>
                 </div>
               ) : (
                 <div className="agent-usage-list">

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { uploadAgent } from '../api/seller';
 import { ApiError } from '../api/client';
 import ErrorBanner from '../components/ErrorBanner';
@@ -55,9 +55,9 @@ export default function SellerAgentUploadPage() {
         <h1>Upload a new agent</h1>
       </div>
       <p className="page-subtitle">
-        Submit your agent as a .zip or .tar.gz per the seller guide. It will be reviewed
-        automatically (static analysis, sandboxed test runs, and an LLM judge) before it's
-        listed.
+        Submit your agent as a .zip or .tar.gz per the{' '}
+        <Link to="/docs/build-agents">build guide</Link>. It will be reviewed automatically
+        (static analysis, sandboxed test runs, and an LLM judge) before it&apos;s listed.
       </p>
 
       <div className="card">

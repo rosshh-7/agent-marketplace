@@ -10,6 +10,7 @@ import RequireCustomerAuth from './components/RequireCustomerAuth';
 import RequireSellerAuth from './components/RequireSellerAuth';
 
 import LandingPage from './pages/LandingPage';
+import BuildAgentsDocsPage from './pages/BuildAgentsDocsPage';
 import BrowseAgentsPage from './pages/BrowseAgentsPage';
 import ProfilePage from './pages/ProfilePage';
 import AgentDetailPage from './pages/AgentDetailPage';
@@ -53,6 +54,7 @@ export default function App() {
               <Route path="/" element={<LandingPage />} />
               <Route path="/agents" element={<BrowseAgentsPage />} />
               <Route path="/agents/:agentId" element={<AgentDetailPage />} />
+              <Route path="/docs/build-agents" element={<BuildAgentsDocsPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
               <Route

@@ -53,6 +53,9 @@ export default function Navbar() {
           <Link to="/" className="nav-link nav-hide-mobile">
             Customer site
           </Link>
+          <NavLink to="/docs/build-agents" className={navLinkClassMobile}>
+            Docs
+          </NavLink>
           {sellerAuth.isAuthenticated ? (
             <>
               <NavLink to="/seller/dashboard" className={navLinkClassMobile} end>

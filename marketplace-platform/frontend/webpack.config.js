@@ -40,6 +40,14 @@ module.exports = (env, argv) => {
           test: /\.css$/,
           use: ['style-loader', 'css-loader'],
         },
+        {
+          // Downloadable files (e.g. the SDK on the build-agents docs page)
+          // ride inside the webpack build so they exist in both dev and the
+          // production dist/ — files in public/ are dev-server-only.
+          test: /\.py$/,
+          type: 'asset/resource',
+          generator: { filename: 'assets/[name][ext]' },
+        },
       ],
     },
     plugins: [

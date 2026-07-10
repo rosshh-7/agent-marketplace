@@ -19,6 +19,7 @@ export default function Footer() {
         <div className="landing-footer-links">
           <Link to="/agents">Browse</Link>
           <Link to="/seller/dashboard">List your agent</Link>
+          <Link to="/docs/build-agents">Build agents</Link>
           <Link to="/login">Log in</Link>
         </div>
       </div>
