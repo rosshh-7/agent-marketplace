@@ -555,6 +555,20 @@ def get_feedback(authorization: str | None = Header(default=None)):
     return {"feedback": [dict(r) for r in rows], "total": len(rows)}
 
 
+@app.get("/stats")
+def get_stats():
+    conn = _get_db()
+    total     = conn.execute("SELECT COUNT(*) FROM listings").fetchone()[0]
+    approved  = conn.execute("SELECT COUNT(*) FROM listings WHERE status = 'approved'").fetchone()[0]
+    pending   = conn.execute("SELECT COUNT(*) FROM listings WHERE status = 'pending_review'").fetchone()[0]
+    feedback  = conn.execute("SELECT COUNT(*), AVG(rating) FROM session_feedback").fetchone()
+    conn.close()
+    return {
+        "listings": {"total": total, "approved": approved, "pending": pending},
+        "feedback": {"total": feedback[0], "avg_rating": round(feedback[1] or 0, 1)},
+    }
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { agents, categoryMeta } from '../data/agents'
-import AgentCard from '../components/AgentCard'
+import AgentCard, { AgentCardSkeleton } from '../components/AgentCard'
 import { getApprovedListings } from '../api/reqAgent'
 import type { Agent, Category } from '../types'
 
@@ -17,10 +17,10 @@ export default function Marketplace() {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState('rating')
   const [listedAgents, setListedAgents] = useState<Agent[]>([])
+  const [loadingListings, setLoadingListings] = useState(true)
 
   const activeCategory = searchParams.get('category') as Category | null
 
-  // Fetch approved listings and convert to Agent shape
   useEffect(() => {
     getApprovedListings().then(listings => {
       setListedAgents(listings.map(l => ({
@@ -36,7 +36,7 @@ export default function Marketplace() {
         reviews: 0,
         featured: false,
       })))
-    }).catch(() => {})
+    }).catch(() => {}).finally(() => setLoadingListings(false))
   }, [])
 
   const allAgents = useMemo(() => [...agents, ...listedAgents], [listedAgents])
@@ -113,15 +113,37 @@ export default function Marketplace() {
         ))}
       </div>
 
+      {/* Active filters summary + clear */}
+      {(search || activeCategory) && (
+        <div className="flex items-center gap-3 mb-4 text-sm">
+          <span className="text-gray-500">Filtering by:</span>
+          {activeCategory && <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300">{activeCategory}</span>}
+          {search && <span className="px-2 py-0.5 rounded-full bg-gray-800 border border-gray-700 text-gray-300">"{search}"</span>}
+          <button
+            onClick={() => { setSearch(''); setSearchParams({}) }}
+            className="ml-auto text-xs text-gray-500 hover:text-white transition-colors underline underline-offset-2"
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
+
       {/* Results */}
-      {filtered.length === 0 ? (
+      {loadingListings ? (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => <AgentCardSkeleton key={i} />)}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="text-center py-20 text-gray-500">
           <div className="text-4xl mb-3">🔍</div>
           <p>No agents match your search.</p>
+          <button onClick={() => { setSearch(''); setSearchParams({}) }} className="mt-4 text-sm text-indigo-400 hover:text-indigo-300 transition-colors">
+            Clear filters
+          </button>
         </div>
       ) : (
         <>
-          <p className="text-sm text-gray-500 mb-4">{filtered.length} agents found</p>
+          <p className="text-sm text-gray-500 mb-4">{filtered.length} agent{filtered.length !== 1 ? 's' : ''} found</p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filtered.map(agent => (
               <div key={agent.id} className="relative">
