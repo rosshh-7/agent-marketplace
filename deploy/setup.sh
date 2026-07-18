@@ -1,70 +1,81 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# Agent Marketplace — Oracle Cloud (or any Ubuntu 22.04 VPS) setup script
+# Agent Marketplace — Oracle Cloud (or any Ubuntu 22.04 VPS) one-command setup
 #
-# Usage:
-#   bash setup.sh <domain> <email> <groq_api_key> [brevo_user] [brevo_pass]
+# Works with a real domain (HTTPS auto-provisioned) OR a bare IP (HTTP only).
 #
-# Example:
-#   bash setup.sh agentmarket.xyz you@gmail.com gsk_abc123
+# Usage — with domain:
+#   bash setup.sh <domain_or_ip> <your_email> <groq_api_key>
 #
-# What it does:
-#   1. Installs Docker
-#   2. Creates required directories
-#   3. Clones the repo
-#   4. Generates strong secrets (JWT, Postgres password)
-#   5. Writes a production .env
-#   6. Builds the HTML UI Builder worker image
-#   7. Starts the full stack with HTTPS
+# Examples:
+#   bash setup.sh agentmarket.xyz   you@gmail.com gsk_abc123   # HTTPS
+#   bash setup.sh 152.67.8.120      you@gmail.com gsk_abc123   # HTTP, no domain needed
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-DOMAIN="${1:-}"
+HOST="${1:-}"        # domain OR bare IP
 EMAIL="${2:-}"
 GROQ_KEY="${3:-}"
 BREVO_USER="${4:-}"
 BREVO_PASS="${5:-}"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
-
 log()  { echo -e "${GREEN}[setup]${NC} $1"; }
 warn() { echo -e "${YELLOW}[warn]${NC}  $1"; }
 die()  { echo -e "${RED}[error]${NC} $1"; exit 1; }
 
-[[ -z "$DOMAIN"   ]] && die "Usage: bash setup.sh <domain> <email> <groq_key>"
-[[ -z "$EMAIL"    ]] && die "Usage: bash setup.sh <domain> <email> <groq_key>"
-[[ -z "$GROQ_KEY" ]] && die "Usage: bash setup.sh <domain> <email> <groq_key>"
+[[ -z "$HOST"     ]] && die "Usage: bash setup.sh <domain_or_ip> <email> <groq_key>"
+[[ -z "$EMAIL"    ]] && die "Usage: bash setup.sh <domain_or_ip> <email> <groq_key>"
+[[ -z "$GROQ_KEY" ]] && die "Usage: bash setup.sh <domain_or_ip> <email> <groq_key>"
 
 APP_DIR="/opt/agentmarket/app"
+
+# Detect whether HOST is an IP address or a domain name
+IS_IP=false
+if [[ "$HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  IS_IP=true
+fi
+
+if $IS_IP; then
+  # HTTP only — Caddy binds on the raw IP, no TLS
+  CADDY_BIND="http://${HOST}"
+  PUBLIC_URL="http://${HOST}"
+  warn "No domain provided — running on HTTP (no HTTPS). Share: http://${HOST}"
+  warn "You can add a domain later and re-run setup.sh to get HTTPS for free."
+else
+  # Real domain — Caddy will auto-get a Let's Encrypt cert
+  CADDY_BIND="${HOST}"
+  PUBLIC_URL="https://${HOST}"
+  log "Domain mode — HTTPS will be provisioned automatically via Let's Encrypt."
+fi
 
 # ── 1. Install Docker ─────────────────────────────────────────────────────────
 if ! command -v docker &>/dev/null; then
   log "Installing Docker..."
   curl -fsSL https://get.docker.com | sh
   usermod -aG docker "$USER" || true
+  newgrp docker || true
   log "Docker installed."
 else
   log "Docker already installed — skipping."
 fi
 
-# Ensure docker compose v2 plugin works
-docker compose version &>/dev/null || die "docker compose plugin not found. Install it: https://docs.docker.com/compose/install/"
+docker compose version &>/dev/null || die "docker compose plugin missing. Run: sudo apt-get install docker-compose-plugin"
 
-# ── 2. Create required host directories ──────────────────────────────────────
+# ── 2. Create host directories ────────────────────────────────────────────────
 log "Creating data directories..."
 mkdir -p /opt/agentmarket/{outputs,dynamic-test-outputs}
 chmod 777 /opt/agentmarket/outputs /opt/agentmarket/dynamic-test-outputs
 
-# ── 3. Clone or update the repo ──────────────────────────────────────────────
+# ── 3. Clone / update repo ────────────────────────────────────────────────────
 if [[ -d "$APP_DIR/.git" ]]; then
-  log "Repo already exists — pulling latest..."
+  log "Repo exists — pulling latest..."
   git -C "$APP_DIR" pull
 else
   log "Cloning repo..."
   mkdir -p "$(dirname "$APP_DIR")"
   git clone https://github.com/rosshh-7/agent-marketplace "$APP_DIR"
 fi
-
 cd "$APP_DIR"
 
 # ── 4. Generate secrets ───────────────────────────────────────────────────────
@@ -72,79 +83,90 @@ log "Generating secrets..."
 JWT_SECRET=$(openssl rand -hex 32)
 POSTGRES_PASSWORD=$(openssl rand -hex 16)
 
-# ── 5. Write .env ─────────────────────────────────────────────────────────────
-log "Writing .env..."
-
-# Determine SMTP settings
+# ── 5. SMTP config ────────────────────────────────────────────────────────────
 if [[ -n "$BREVO_USER" && -n "$BREVO_PASS" ]]; then
-  SMTP_HOST="smtp-relay.brevo.com"
-  SMTP_PORT="587"
-  SMTP_USER_VAL="$BREVO_USER"
-  SMTP_PASS_VAL="$BREVO_PASS"
-  SMTP_FROM="noreply@${DOMAIN}"
+  SMTP_HOST="smtp-relay.brevo.com"; SMTP_PORT="587"
+  SMTP_USER_VAL="$BREVO_USER";     SMTP_PASS_VAL="$BREVO_PASS"
+  SMTP_FROM="noreply@${HOST}"
 else
-  warn "No Brevo credentials provided — email disabled (SMTP will silently fail)."
-  SMTP_HOST="localhost"
-  SMTP_PORT="25"
-  SMTP_USER_VAL=""
-  SMTP_PASS_VAL=""
-  SMTP_FROM="noreply@${DOMAIN}"
+  warn "No email credentials — completion emails disabled."
+  SMTP_HOST="localhost"; SMTP_PORT="25"
+  SMTP_USER_VAL="";      SMTP_PASS_VAL=""
+  SMTP_FROM="noreply@agentmarket.local"
 fi
 
+# ── 6. Write .env ─────────────────────────────────────────────────────────────
+log "Writing .env..."
 cat > .env << EOF
 # Generated by setup.sh on $(date -u)
 
-DOMAIN=${DOMAIN}
+# ── Host ──────────────────────────────────────────────────────────────────────
+DOMAIN=${HOST}
+CADDY_BIND=${CADDY_BIND}
 ACME_EMAIL=${EMAIL}
 
+# ── Database ──────────────────────────────────────────────────────────────────
 POSTGRES_USER=agentmarket
 POSTGRES_DB=agentmarket
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+DATABASE_URL=postgresql://agentmarket:${POSTGRES_PASSWORD}@postgres:5432/agentmarket
 
+# ── Auth ──────────────────────────────────────────────────────────────────────
 JWT_SECRET=${JWT_SECRET}
 
+# ── LLM ───────────────────────────────────────────────────────────────────────
 LLM_PROVIDER=groq
 GROQ_API_KEY=${GROQ_KEY}
 GROQ_MODEL=llama-3.3-70b-versatile
 
+# ── Email ─────────────────────────────────────────────────────────────────────
 SMTP_HOST=${SMTP_HOST}
 SMTP_PORT=${SMTP_PORT}
 SMTP_USER=${SMTP_USER_VAL}
 SMTP_PASS=${SMTP_PASS_VAL}
 SMTP_FROM=${SMTP_FROM}
 
+# ── Paths ─────────────────────────────────────────────────────────────────────
 OUTPUTS_DIR=/opt/agentmarket/outputs
 DYNAMIC_TEST_OUTPUTS_DIR=/opt/agentmarket/dynamic-test-outputs
+SUBMISSIONS_DIR=/submissions
+PREVIEWS_DIR=/previews
 
-DATABASE_URL=postgresql://agentmarket:${POSTGRES_PASSWORD}@postgres:5432/agentmarket
+# ── Internal wiring ───────────────────────────────────────────────────────────
 REQ_AGENT_URL=http://req-agent:8002
 REVIEW_AGENT_URL=http://review-agent:8000
 AGENT_DOCKER_NETWORK=agentmarket-net
 BACKEND_INTERNAL_URL=http://backend:8000
-SUBMISSIONS_DIR=/submissions
-PREVIEWS_DIR=/previews
+FRONTEND_BASE_URL=${PUBLIC_URL}
+CORS_ORIGINS=${PUBLIC_URL}
 EOF
 
 log ".env written."
 
-# ── 6. Build the worker agent image ──────────────────────────────────────────
+# ── 7. Build worker agent image ───────────────────────────────────────────────
 log "Building HTML UI Builder worker image..."
 bash scripts/build-agents.sh
 log "Worker image built."
 
-# ── 7. Start the stack ───────────────────────────────────────────────────────
-log "Starting the full stack..."
+# ── 8. Start the stack ────────────────────────────────────────────────────────
+log "Starting the full stack (this takes 2–5 minutes on first run)..."
 docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d --build
 
 log ""
-log "─────────────────────────────────────────────────────────────"
-log " Setup complete!"
+log "══════════════════════════════════════════════════════════════"
+log "  Setup complete!"
 log ""
-log " Your app will be live at:  https://${DOMAIN}"
-log " (SSL cert may take 30–60 seconds to provision on first boot)"
+log "  Share this link with your users:"
+log "  👉  ${PUBLIC_URL}"
+if $IS_IP; then
+  log ""
+  log "  (HTTP only — browsers may show a 'not secure' warning.)"
+  log "  To upgrade to HTTPS later: buy a domain, point it here,"
+  log "  then re-run:  bash deploy/setup.sh yourdomain.com ${EMAIL} ${GROQ_KEY}"
+fi
 log ""
-log " Useful commands:"
-log "   docker compose logs -f              # stream all logs"
-log "   docker compose ps                   # check container health"
-log "   bash deploy/update.sh               # pull + redeploy latest"
-log "─────────────────────────────────────────────────────────────"
+log "  Useful commands (run from ${APP_DIR}):"
+log "    docker compose logs -f         # live logs"
+log "    docker compose ps              # check all containers"
+log "    bash deploy/update.sh          # deploy latest code"
+log "══════════════════════════════════════════════════════════════"

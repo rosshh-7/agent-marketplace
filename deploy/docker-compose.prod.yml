@@ -25,6 +25,7 @@ services:
       - caddy_config:/config
     environment:
       DOMAIN: ${DOMAIN}
+      CADDY_BIND: ${CADDY_BIND}
       ACME_EMAIL: ${ACME_EMAIL}
     networks:
       - agentmarket-net
@@ -54,12 +55,13 @@ services:
       OUTPUTS_DIR: ${OUTPUTS_DIR}
       LOG_LEVEL: INFO
 
-  # ── Frontend — rebuild with real domain so API calls go to the right URL ─────
+  # ── Frontend — rebuild with the public URL so API calls go to the right place ─
+  # FRONTEND_BASE_URL is set by setup.sh to http://IP or https://domain correctly.
   frontend:
     restart: unless-stopped
     build:
       args:
-        API_BASE_URL: https://${DOMAIN}
+        API_BASE_URL: ${FRONTEND_BASE_URL}
     ports: !reset []    # Caddy handles ingress; no direct port needed
 
   # ── req-agent ─────────────────────────────────────────────────────────────────
