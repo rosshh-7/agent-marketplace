@@ -91,6 +91,29 @@ def finalize(session_id: str) -> dict:
         raise ReqAgentError(f"finalize failed: {exc}") from exc
 
 
+def confirm(session_id: str) -> dict:
+    """POST /sessions/{id}/confirm -> {requirements, review_status, review_feedback, review_gaps, review_strengths, feasibility_score}"""
+    started = time.monotonic()
+    try:
+        with _client() as client:
+            resp = client.post(f"/sessions/{session_id}/confirm")
+            resp.raise_for_status()
+            data = resp.json()
+        log_kv(
+            logger, logging.INFO, "req-agent confirm ok",
+            session_id=session_id, review_status=data.get("review_status"),
+            latency_ms=int((time.monotonic() - started) * 1000),
+        )
+        return data
+    except httpx.HTTPError as exc:
+        log_kv(
+            logger, logging.ERROR, "req-agent confirm failed",
+            session_id=session_id, error=str(exc),
+            latency_ms=int((time.monotonic() - started) * 1000),
+        )
+        raise ReqAgentError(f"confirm failed: {exc}") from exc
+
+
 def get_requirements(session_id: str) -> dict:
     """GET /sessions/{id}/requirements -> {phase, requirements}"""
     try:

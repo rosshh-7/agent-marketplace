@@ -3,7 +3,7 @@
 // than reaching into context, so this module stays a plain, testable client.
 
 import { apiFetch, apiUrl } from './client';
-import { ChatMessage, JobChatResponse, JobDetail, JobHireResponse, JobStartResponse, JobSummary } from '../types';
+import { ChatMessage, JobChatResponse, JobDetail, JobFinalizeResponse, JobHireResponse, JobStartResponse, JobSummary } from '../types';
 
 export function startJob(token: string, agentId: string, brief: string): Promise<JobStartResponse> {
   return apiFetch<JobStartResponse>('/api/jobs/start', {
@@ -21,11 +21,22 @@ export function sendChatMessage(token: string, jobId: string, message: string): 
   });
 }
 
-export function hireJob(token: string, jobId: string): Promise<JobHireResponse> {
-  return apiFetch<JobHireResponse>(`/api/jobs/${jobId}/hire`, {
+export function finalizeJob(token: string, jobId: string): Promise<JobFinalizeResponse> {
+  return apiFetch<JobFinalizeResponse>(`/api/jobs/${jobId}/finalize`, {
     method: 'POST',
     token,
   });
+}
+
+export function hireJob(token: string, jobId: string, force = false): Promise<JobHireResponse> {
+  return apiFetch<JobHireResponse>(`/api/jobs/${jobId}/hire${force ? '?force=true' : ''}`, {
+    method: 'POST',
+    token,
+  });
+}
+
+export function downloadRequirements(token: string, jobId: string, format: 'md' | 'json'): string {
+  return apiUrl(`/api/jobs/${jobId}/requirements/download?format=${format}&token=${encodeURIComponent(token)}`);
 }
 
 export function listJobs(token: string): Promise<JobSummary[]> {
@@ -62,6 +73,19 @@ export function rejectJob(token: string, jobId: string, reason?: string): Promis
  * an <iframe src> can't set custom headers — confirmed against the built
  * backend, not just assumed. Pass the current customer token through here.
  */
+export function submitReview(
+  token: string,
+  jobId: string,
+  rating: number,
+  feedback?: string,
+): Promise<{ message: string; new_rating_avg: number; new_rating_count: number }> {
+  return apiFetch(`/api/jobs/${jobId}/review`, {
+    method: 'POST',
+    token,
+    json: { rating, feedback: feedback || null },
+  });
+}
+
 export function previewUrl(jobId: string, token: string): string {
   return apiUrl(`/api/jobs/${jobId}/preview/index.html?token=${encodeURIComponent(token)}`);
 }

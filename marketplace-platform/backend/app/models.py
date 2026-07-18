@@ -66,7 +66,12 @@ class Agent(Base):
     image_name: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, default="active", index=True)
     card_copy: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tags: Mapped[list | None] = mapped_column(JSON, nullable=True, default=list)
+    rating_avg: Mapped[float | None] = mapped_column(Numeric(3, 2), nullable=True, default=4.5)
+    rating_count: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    reviews: Mapped[list["AgentReview"]] = relationship(back_populates="agent")
 
     seller: Mapped["Seller | None"] = relationship(back_populates="agents")
     jobs: Mapped[list["Job"]] = relationship(back_populates="agent")
@@ -117,6 +122,20 @@ class ChatMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     job: Mapped["Job"] = relationship(back_populates="messages")
+
+
+class AgentReview(Base):
+    __tablename__ = "agent_reviews"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    agent_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("agents.id"), nullable=False)
+    job_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("jobs.id"), unique=True, nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    rating: Mapped[int] = mapped_column(nullable=False)
+    feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    agent: Mapped["Agent"] = relationship(back_populates="reviews")
 
 
 class SellerSubmission(Base):
