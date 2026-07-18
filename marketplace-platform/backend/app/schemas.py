@@ -79,6 +79,9 @@ class AgentSummary(BaseModel):
     avg_hours: float | None
     status: str
     card_copy: str | None
+    tags: list[str] = []
+    rating_avg: float | None = None
+    rating_count: int = 0
 
 
 class AgentDetail(AgentSummary):
@@ -108,11 +111,32 @@ class JobChatRequest(BaseModel):
 class JobChatResponse(BaseModel):
     message: str
     phase: str
+    completeness_score: int = 0
+
+
+class JobFinalizeResponse(BaseModel):
+    requirements: dict[str, Any]
+    completeness_score: int
+    vague_areas: list[str]
+    confirm_message: str
 
 
 class JobHireResponse(BaseModel):
     job_id: uuid.UUID
     status: str
+    worker_launched: bool = False
+    review_status: str = ""
+    review_feedback: str = ""
+    review_gaps: list[str] = []
+    review_strengths: list[str] = []
+    review_recommendations: list[str] = []
+    feasibility_score: int = 0
+
+
+class JobRequirementsDownload(BaseModel):
+    content: str
+    filename: str
+    media_type: str
 
 
 class JobSummary(BaseModel):
@@ -153,6 +177,17 @@ class ChatMessageOut(BaseModel):
 
 class RejectRequest(BaseModel):
     reason: str | None = None
+
+
+class ReviewRequest(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    feedback: str | None = None
+
+
+class ReviewResponse(BaseModel):
+    message: str
+    new_rating_avg: float
+    new_rating_count: int
 
 
 # ---------- SDK callbacks (unprefixed, §6) ----------

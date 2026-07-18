@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { listAgents } from '../api/agents';
 import { ApiError } from '../api/client';
 import AgentCard, { formatCategory } from '../components/AgentCard';
@@ -6,25 +7,31 @@ import ErrorBanner from '../components/ErrorBanner';
 import { SearchIcon } from '../components/icons';
 import { AgentSummary } from '../types';
 
-type SortKey = 'featured' | 'rate_asc' | 'rate_desc' | 'name';
+type SortKey = 'featured' | 'rate_asc' | 'rate_desc' | 'rating' | 'name';
 
 const SORTERS: Record<SortKey, (a: AgentSummary, b: AgentSummary) => number> = {
-  featured: () => 0,
-  rate_asc: (a, b) => Number(a.hourly_rate) - Number(b.hourly_rate),
+  featured:  () => 0,
+  rate_asc:  (a, b) => Number(a.hourly_rate) - Number(b.hourly_rate),
   rate_desc: (a, b) => Number(b.hourly_rate) - Number(a.hourly_rate),
-  name: (a, b) => a.name.localeCompare(b.name),
+  rating:    (a, b) => (b.rating_avg ?? 0) - (a.rating_avg ?? 0),
+  name:      (a, b) => a.name.localeCompare(b.name),
 };
 
 export default function BrowseAgentsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [agents, setAgents] = useState<AgentSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [category, setCategory] = useState('');
   const [sort, setSort] = useState<SortKey>('featured');
 
-  // Fetch the catalog once and filter client-side: search is instant, and
-  // the category pills stay stable instead of shrinking to match the
-  // current filter.
+  // Tag comes from the URL so card tag-clicks work cross-page
+  const activeTag = searchParams.get('tag') ?? '';
+
+  function clearTag() {
+    setSearchParams({});
+  }
+
   useEffect(() => {
     listAgents()
       .then(setAgents)
@@ -41,12 +48,13 @@ export default function BrowseAgentsPage() {
     const needle = q.trim().toLowerCase();
     const filtered = agents.filter((a) => {
       if (category && a.category !== category) return false;
+      if (activeTag && !(a.tags ?? []).includes(activeTag)) return false;
       if (!needle) return true;
-      const haystack = `${a.name} ${a.description} ${a.card_copy ?? ''} ${a.category}`.toLowerCase();
+      const haystack = `${a.name} ${a.description} ${a.card_copy ?? ''} ${a.category} ${(a.tags ?? []).join(' ')}`.toLowerCase();
       return haystack.includes(needle);
     });
     return sort === 'featured' ? filtered : [...filtered].sort(SORTERS[sort]);
-  }, [agents, q, category, sort]);
+  }, [agents, q, category, activeTag, sort]);
 
   return (
     <div className="page">
@@ -76,11 +84,19 @@ export default function BrowseAgentsPage() {
             aria-label="Sort agents"
           >
             <option value="featured">Sort: Featured</option>
+            <option value="rating">Top rated</option>
             <option value="rate_asc">Rate: low to high</option>
             <option value="rate_desc">Rate: high to low</option>
             <option value="name">Name: A–Z</option>
           </select>
         </div>
+        {activeTag && (
+          <div className="active-tag-bar">
+            <span>Filtered by tag:</span>
+            <span className="agent-tag"># {activeTag}</span>
+            <button type="button" className="pill" onClick={clearTag}>✕ Clear</button>
+          </div>
+        )}
         <div className="category-pills">
           <button
             type="button"
@@ -113,9 +129,10 @@ export default function BrowseAgentsPage() {
       ) : null}
 
       {visible !== null ? (
-        <p className="results-count">
+        <p className=”results-count”>
           {visible.length} agent{visible.length === 1 ? '' : 's'}
           {category ? ` in ${formatCategory(category)}` : ''}
+          {activeTag ? ` tagged #${activeTag}` : ''}
           {q.trim() ? ` matching “${q.trim()}”` : ''}
         </p>
       ) : null}

@@ -53,6 +53,9 @@ export interface AgentSummary {
   avg_hours: number;
   card_copy: string | null;
   status: AgentStatus;
+  tags: string[];
+  rating_avg: number | null;
+  rating_count: number;
 }
 
 export interface AgentDetail extends AgentSummary {
@@ -115,17 +118,32 @@ export interface JobDetail extends JobSummary {
 export interface JobStartResponse {
   job_id: string;
   message: string;
-  phase: 'gathering' | 'extracting' | 'done';
+  phase: string;
 }
 
 export interface JobChatResponse {
   message: string;
-  phase: 'gathering' | 'extracting' | 'done';
+  phase: string;
+  completeness_score: number;
+}
+
+export interface JobFinalizeResponse {
+  requirements: Record<string, unknown>;
+  completeness_score: number;
+  vague_areas: string[];
+  confirm_message: string;
 }
 
 export interface JobHireResponse {
   job_id: string;
   status: JobStatus;
+  worker_launched: boolean;
+  review_status: string;
+  review_feedback: string;
+  review_gaps: string[];
+  review_strengths: string[];
+  review_recommendations: string[];
+  feasibility_score: number;
 }
 
 export interface ChatMessage {
