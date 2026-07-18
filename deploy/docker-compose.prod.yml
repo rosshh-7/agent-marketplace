@@ -1,0 +1,86 @@
+# Production overrides — used WITH the base docker-compose.yml:
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d
+#
+# What this changes vs. dev:
+#   - Adds Caddy (auto HTTPS reverse proxy — routes /api → backend, / → frontend)
+#   - Removes mailhog; SMTP points to Brevo (or any real provider)
+#   - Frontend rebuilt with the real domain as API_BASE_URL
+#   - Postgres / JWT secrets taken from .env (strong values set by setup.sh)
+#   - Backend and frontend ports are NOT published — only Caddy is public-facing
+#   - CORS locked to the real domain
+
+services:
+
+  # ── Caddy reverse proxy (auto HTTPS) ─────────────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    networks:
+      - agentmarket-net
+    depends_on:
+      - frontend
+      - backend
+
+  # ── Remove mailhog from production ───────────────────────────────────────────
+  mailhog:
+    profiles:
+      - dev-only   # effectively disables it in prod (no profile is activated)
+
+  # ── Backend — production env overrides ───────────────────────────────────────
+  backend:
+    restart: unless-stopped
+    ports: !reset []    # don't publish backend port directly — only Caddy faces internet
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agentmarket}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agentmarket}
+      JWT_SECRET: ${JWT_SECRET}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      FRONTEND_BASE_URL: https://${DOMAIN}
+      CORS_ORIGINS: https://${DOMAIN}
+      OUTPUTS_DIR: ${OUTPUTS_DIR}
+      LOG_LEVEL: INFO
+
+  # ── Frontend — rebuild with real domain so API calls go to the right URL ─────
+  frontend:
+    restart: unless-stopped
+    build:
+      args:
+        API_BASE_URL: https://${DOMAIN}
+    ports: !reset []    # Caddy handles ingress; no direct port needed
+
+  # ── req-agent ─────────────────────────────────────────────────────────────────
+  req-agent:
+    restart: unless-stopped
+    ports: !reset []
+
+  # ── review-agent ──────────────────────────────────────────────────────────────
+  review-agent:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      DYNAMIC_TEST_OUTPUTS_DIR: ${DYNAMIC_TEST_OUTPUTS_DIR}
+
+  # ── Postgres — strong password in prod ───────────────────────────────────────
+  postgres:
+    restart: unless-stopped
+    ports: !reset []    # not exposed outside the container network in prod
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+volumes:
+  caddy_data:
+  caddy_config:
